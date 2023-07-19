@@ -1,0 +1,47 @@
+const _ = require('lodash');
+const ZKLib = require('qr-zklib');
+const Airtable = require('airtable');
+require('dotenv').config();
+// const zklib = require('zklib-js');
+
+const removeUserAndSyncDevices = async (uid) => {
+    // Establish connections with both devices
+    const device1 = new ZKLib('192.168.0.8', 4370, 10000, 4000);
+    const device2 = new ZKLib('192.168.0.4', 4370, 10000, 4000);
+
+    try {
+       
+        
+        
+        await device1.createSocket();
+        await device2.createSocket();
+        
+        await device1.removeUser(uid);
+        await device2.removeUser(uid);
+       
+
+    
+        const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(process.env.AIRTABLE_BASE_ID);
+        var table = base('user-data');
+        const records = await table.select({
+            filterByFormula: `uid = '${uid}'`
+          }).all();
+      
+          // Delete the record(s)
+          const deletedRecords = await table.destroy(records.map(record => record.id));
+          console.log('Record deleted successfully:');
+        
+
+        console.log(`User with ID ${uid} has been removed from devices and Airtable, and devices have been synchronized.`);
+    } catch (error) {
+        console.error('Error removing user and synchronizing devices:', error);
+    } finally {
+        // Disconnect from both devices
+        device1.disconnect();
+        device2.disconnect();
+    }
+};
+
+// Usage: Call the removeUserAndSyncDevices function with the user ID you want to remove
+removeUserAndSyncDevices(124);
+
